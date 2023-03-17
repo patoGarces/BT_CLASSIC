@@ -11,8 +11,6 @@
 #include "sys/time.h"
 #include "string.h"
 
-#include "main.h"
-
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "HolaMundoBT"
 #define EXAMPLE_DEVICE_NAME "HolaMundoBT1"                  // nombre del dispositivo
@@ -222,15 +220,15 @@ uint8_t btIsConnected(void){
 void btReceiveData(esp_spp_cb_param_t *param){
     char spp_data[100];
 
-    if(strstr((const char*)param->data_ind.data,"LEDON") != NULL){
-        gpio_set_level(LED2,1);
-        printf("LED ENCENDIDO\n");
-    }
-    if(strstr((const char*)param->data_ind.data,"LEDOFF") != NULL){
-        gpio_set_level(LED2,0);
-        printf("LED APAGADO\n");
+    // if(strstr((const char*)param->data_ind.data,"LEDON") != NULL){
+    //     gpio_set_level(LED2,1);
+    //     printf("LED ENCENDIDO\n");
+    // }
+    // if(strstr((const char*)param->data_ind.data,"LEDOFF") != NULL){
+    //     gpio_set_level(LED2,0);
+    //     printf("LED APAGADO\n");
 
-    }
+    // }
     /* respondo */
     sprintf(spp_data, "Comando recibido: %s\n", param->data_ind.data);
     esp_spp_write(param->data_ind.handle, strlen(spp_data), (uint8_t *)spp_data);
