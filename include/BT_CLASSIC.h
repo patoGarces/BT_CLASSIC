@@ -30,7 +30,7 @@ typedef struct{
     uint8_t error_code;
 }rx_bt_app_t;
 
-esp_err_t bt_init(void);
+void bt_init(void);
 void btSendData(float x,float y, uint16_t motores);
 void btReceiveData(esp_spp_cb_param_t *param);
 
