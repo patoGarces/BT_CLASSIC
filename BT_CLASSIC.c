@@ -15,6 +15,9 @@
 #include "esp_spp_api.h"
 #include "spp_task.h"
 
+// #include "esp_vfs.h"
+#include "sys/unistd.h"
+
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "HolaMundoBT"
 #define EXAMPLE_DEVICE_NAME "HolaMundoBT1"                  // nombre del dispositivo
@@ -32,124 +35,6 @@ static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
-// void handler_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param){
-
-//     switch (event) {
-
-//         case ESP_BT_GAP_REMOVE_BOND_DEV_COMPLETE_EVT:{                              //TODO: completar
-
-//             break;
-//         }
-//         case ESP_BT_GAP_AUTH_CMPL_EVT:{
-//             if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS) {
-//     //             ESP_LOGI(SPP_TAG, "authentication success: %s", param->auth_cmpl.device_name);
-//                 esp_log_buffer_hex(SPP_TAG, param->auth_cmpl.bda, ESP_BD_ADDR_LEN);
-//             } else {
-//     //             ESP_LOGE(SPP_TAG, "authentication failed, status:%d", param->auth_cmpl.stat);
-//             }
-//             break;
-//         }
-//         case ESP_BT_GAP_PIN_REQ_EVT:{
-//             // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
-//             if (param->pin_req.min_16_digit) {
-//                 // ESP_LOGI(SPP_TAG, "Input pin code: 0000 0000 0000 0000");
-//                 esp_bt_pin_code_t pin_code = {0};
-//                 esp_bt_gap_pin_reply(param->pin_req.bda, true, 16, pin_code);
-//             } else {
-//                 // ESP_LOGI(SPP_TAG, "Input pin code: 1234");
-//                 esp_bt_pin_code_t pin_code;
-//                 pin_code[0] = '1';
-//                 pin_code[1] = '2';
-//                 pin_code[2] = '3';
-//                 pin_code[3] = '4';
-//                 esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin_code);
-//             }
-//             break;
-//         }
-
-// #if (CONFIG_BT_SSP_ENABLED == true)
-//     case ESP_BT_GAP_CFM_REQ_EVT:
-//         // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %d", param->cfm_req.num_val);
-//         esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
-//         break;
-//     case ESP_BT_GAP_KEY_NOTIF_EVT:
-//         // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%d", param->key_notif.passkey);
-//         break;
-//     case ESP_BT_GAP_KEY_REQ_EVT:
-//         // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
-//         break;
-// #endif
-
-//     case ESP_BT_GAP_MODE_CHG_EVT:
-//         // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_MODE_CHG_EVT mode:%d", param->mode_chg.mode);
-//         break;
-
-//     default: {
-//         // ESP_LOGI(SPP_TAG, "event: %d", event);
-//         break;
-//     }
-//     }
-//     return;
-// }
-
-// void handler_spp_cb(esp_spp_cb_event_t event,esp_spp_cb_param_t *param){
-
-//     switch (event) {
-//         case ESP_SPP_INIT_EVT:
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");                                  // se llama cuando el spp inicia
-//             esp_spp_start_srv(sec_mask,role_slave, 0, SPP_SERVER_NAME);
-//             break;
-//         case ESP_SPP_DISCOVERY_COMP_EVT:                                            // se llama cuando se completa el descubrimiento(?)
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
-//             break;
-//         case ESP_SPP_OPEN_EVT:                                                      // se llama cuando se abre la conexion con el cliente spp
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
-            
-//             break;
-//         case ESP_SPP_CLOSE_EVT:                                                     // se llama cuando se cierra la conexion con el cliente spp
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT");
-//             btConnected=false;
-//             break;
-//         case ESP_SPP_START_EVT:                                                     // se llama cuando se inicializa el servidor SPP
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_START_EVT");
-//             esp_bt_dev_set_device_name(EXAMPLE_DEVICE_NAME);
-//             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
-//             break;
-//         case ESP_SPP_CL_INIT_EVT:                                                   // se llama cuando el cliente inicio el servidor SPP
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
-//             break;
-//         case ESP_SPP_DATA_IND_EVT:                                                  // se llama cuando se recibe informacion de la conexion spp
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
-//                     // param->data_ind.len, param->data_ind.handle);
-//             // esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
-//             // ESP_LOG_BUFFER_CHAR("",param->data_ind.data,param->data_ind.len);
-
-//             btReceiveData(param);
-//             break;
-//         case ESP_SPP_CONG_EVT:                                                      // se llama cuando cambia el estado de congestion, solo para ESP_SPP_MODE_CB
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
-//             break;
-//         case ESP_SPP_WRITE_EVT:                                                     // se llama cuando se completa la escritura
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
-//             break;
-//         case ESP_SPP_SRV_OPEN_EVT:                                                  // se llama cuando se abre el servidor SPP
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
-//             handleSpp = param->srv_open.handle;
-//             // ESP_LOGE(SPP_TAG,"Handle hallado: %d",handleSpp);
-//             gettimeofday(&time_old, NULL);  
-//             btConnected=true;           
-//             break;
-//         case ESP_SPP_SRV_STOP_EVT:                                                  // se llama cuando el servidor SPP se para                 
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_STOP_EVT");
-//             break;
-//         case ESP_SPP_UNINIT_EVT:                                                    // se llama cuando el servidor SPP no esta inicializado
-//             // ESP_LOGI(SPP_TAG, "ESP_SPP_UNINIT_EVT");
-//             break;
-//         default:
-//             break;
-//     }
-
-// }
 
 static void spp_read_handle(void * param)
 {
@@ -164,21 +49,21 @@ static void spp_read_handle(void * param)
     }
 
 // TODO: revisar esto 
-    // do {
-    //     /* The frequency of calling this function also limits the speed at which the peer device can send data. */
-    //     size = read(fd, spp_data, SPP_DATA_LEN);
-    //     if (size < 0) {
-    //         break;
-    //     } else if (size == 0) {
-    //         /* There is no data, retry after 500 ms */
-    //         vTaskDelay(500 / portTICK_PERIOD_MS);
-    //     } else {
-    //         ESP_LOGI(SPP_TAG, "fd = %d data_len = %d", fd, size);
-    //         esp_log_buffer_hex(SPP_TAG, spp_data, size);
-    //         /* To avoid task watchdog */
-    //         vTaskDelay(10 / portTICK_PERIOD_MS);
-    //     }
-    // } while (1);
+    do {
+        /* The frequency of calling this function also limits the speed at which the peer device can send data. */
+        size = read(fd, spp_data, SPP_DATA_LEN);
+        if (size < 0) {
+            break;
+        } else if (size == 0) {
+            /* There is no data, retry after 500 ms */
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        } else {
+            ESP_LOGI(SPP_TAG, "fd = %d data_len = %d", fd, size);
+            esp_log_buffer_hex(SPP_TAG, spp_data, size);
+            /* To avoid task watchdog */
+            vTaskDelay(10 / portTICK_PERIOD_MS);
+        }
+    } while (1);
 done:
     if (spp_data) {
         free(spp_data);
@@ -195,7 +80,7 @@ static void esp_spp_cb(uint16_t e, void *p)
     switch (event) {
     case ESP_SPP_INIT_EVT:
         if (param->init.status == ESP_SPP_SUCCESS) {
-            // ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
+            ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
             /* Enable SPP VFS mode */
             esp_spp_vfs_register();
         } else {
@@ -203,19 +88,20 @@ static void esp_spp_cb(uint16_t e, void *p)
         }
         break;
     case ESP_SPP_DISCOVERY_COMP_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
+        ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
         break;
     case ESP_SPP_OPEN_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
+        ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT 0x01");
         break;
     case ESP_SPP_CLOSE_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT status:%d handle:%"PRIu32" close_by_remote:%d", param->close.status,
-                //  param->close.handle, param->close.async);
+        ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT status:%d handle:%"PRIu32" close_by_remote:%d", param->close.status,
+                 param->close.handle, param->close.async);
+                 btConnected = false;
         break;
     case ESP_SPP_START_EVT:
         if (param->start.status == ESP_SPP_SUCCESS) {
-            // ESP_LOGI(SPP_TAG, "ESP_SPP_START_EVT handle:%"PRIu32" sec_id:%d scn:%d", param->start.handle, param->start.sec_id,
-                    //  param->start.scn);
+            ESP_LOGI(SPP_TAG, "ESP_SPP_START_EVT handle:%"PRIu32" sec_id:%d scn:%d", param->start.handle, param->start.sec_id,
+                     param->start.scn);
             esp_bt_dev_set_device_name(EXAMPLE_DEVICE_NAME);
             esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         } else {
@@ -223,18 +109,38 @@ static void esp_spp_cb(uint16_t e, void *p)
         }
         break;
     case ESP_SPP_CL_INIT_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
+        ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
         break;
     case ESP_SPP_SRV_OPEN_EVT:
         // ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT status:%d handle:%"PRIu32", rem_bda:[%s]", param->srv_open.status,
                 //  param->srv_open.handle, bda2str(param->srv_open.rem_bda, bda_str, sizeof(bda_str)));
+
+        ESP_LOGI(SPP_TAG,"ESP_SPP_SRV_OPEN_EVT");
+
         if (param->srv_open.status == ESP_SPP_SUCCESS) {
+
+            btConnected = true;
             spp_wr_task_start_up(spp_read_handle, param->srv_open.fd);
+        }
+        break;
+
+    case ESP_SPP_DATA_IND_EVT:
+    
+        ESP_LOGI(SPP_TAG, "Nueva data recibida!");
+        /*
+         * We only show the data in which the data length is less than 128 here. If you want to print the data and
+         * the data rate is high, it is strongly recommended to process them in other lower priority application task
+         * rather than in this callback directly. Since the printing takes too much time, it may stuck the Bluetooth
+         * stack and also have a effect on the throughput!
+         */
+        // ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len:%d handle:%d",param->data_ind.len, param->data_ind.handle);
+        if (param->data_ind.len < 128) {
+            esp_log_buffer_hex("", param->data_ind.data, param->data_ind.len);
         }
         break;
     case ESP_SPP_VFS_REGISTER_EVT:
         if (param->vfs_register.status == ESP_SPP_SUCCESS) {
-            // ESP_LOGI(SPP_TAG, "ESP_SPP_VFS_REGISTER_EVT");
+            ESP_LOGI(SPP_TAG, "ESP_SPP_VFS_REGISTER_EVT");
             esp_spp_start_srv(sec_mask, role_slave, 0, SPP_SERVER_NAME);
         } else {
             ESP_LOGE(SPP_TAG, "ESP_SPP_VFS_REGISTER_EVT status:%d", param->vfs_register.status);
@@ -256,7 +162,7 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
     switch (event) {
     case ESP_BT_GAP_AUTH_CMPL_EVT:{
         if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS) {
-            // ESP_LOGI(SPP_TAG, "authentication success: %s", param->auth_cmpl.device_name);
+            ESP_LOGI(SPP_TAG, "authentication success: %s", param->auth_cmpl.device_name);
             esp_log_buffer_hex(SPP_TAG, param->auth_cmpl.bda, ESP_BD_ADDR_LEN);
         } else {
             ESP_LOGE(SPP_TAG, "authentication failed, status:%d", param->auth_cmpl.stat);
@@ -266,11 +172,11 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
     case ESP_BT_GAP_PIN_REQ_EVT:{
         ESP_LOGI(SPP_TAG, "ESP_BT_GAP_PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
         if (param->pin_req.min_16_digit) {
-            // ESP_LOGI(SPP_TAG, "Input pin code: 0000 0000 0000 0000");
+            ESP_LOGI(SPP_TAG, "Input pin code: 0000 0000 0000 0000");
             esp_bt_pin_code_t pin_code = {0};
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 16, pin_code);
         } else {
-            // ESP_LOGI(SPP_TAG, "Input pin code: 1234");
+            ESP_LOGI(SPP_TAG, "Input pin code: 1234");
             esp_bt_pin_code_t pin_code;
             pin_code[0] = '1';
             pin_code[1] = '2';
@@ -283,23 +189,23 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 
 #if (CONFIG_BT_SSP_ENABLED == true)
     case ESP_BT_GAP_CFM_REQ_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %"PRIu32, param->cfm_req.num_val);
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %"PRIu32, param->cfm_req.num_val);
         esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
         break;
     case ESP_BT_GAP_KEY_NOTIF_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%"PRIu32, param->key_notif.passkey);
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%"PRIu32, param->key_notif.passkey);
         break;
     case ESP_BT_GAP_KEY_REQ_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
         break;
 #endif
 
     case ESP_BT_GAP_MODE_CHG_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_BT_GAP_MODE_CHG_EVT mode:%d", param->mode_chg.mode);
+        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_MODE_CHG_EVT mode:%d", param->mode_chg.mode);
         break;
 
     default: {
-        // ESP_LOGI(SPP_TAG, "event: %d", event);
+        ESP_LOGI(SPP_TAG, "event: %d", event);
         break;
     }
     }
