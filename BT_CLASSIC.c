@@ -25,7 +25,7 @@
 #define mode_bt ESP_BT_MODE_CLASSIC_BT                      // modo clasico: MOODO_BT_MODE_CLASSIC_BT,  modo BLE: ESP_BT_MODE_BLE, modo dual: ESP_BT_MODE_BTDM
 #define SPP_DATA_LEN 100
 
-static struct timeval time_old;
+// static struct timeval time_old;
 
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
@@ -35,12 +35,24 @@ static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
+ struct{
+    uint32_t header;
+    uint32_t kp;
+    uint32_t ki;
+    uint32_t kd;
+} pidSettings;
 
 static void spp_read_handle(void * param)
 {
     int size = 0;
     int fd = (int)param;
     uint8_t *spp_data = NULL;
+    uint8_t i;
+
+    pidSettings.header = 0;
+    pidSettings.kp = 0;
+    pidSettings.ki = 0;
+    pidSettings.kd = 0;
 
     spp_data = malloc(SPP_DATA_LEN);
     if (!spp_data) {
@@ -48,7 +60,6 @@ static void spp_read_handle(void * param)
         goto done;
     }
 
-// TODO: revisar esto 
     do {
         /* The frequency of calling this function also limits the speed at which the peer device can send data. */
         size = read(fd, spp_data, SPP_DATA_LEN);
@@ -60,6 +71,39 @@ static void spp_read_handle(void * param)
         } else {
             ESP_LOGI(SPP_TAG, "fd = %d data_len = %d", fd, size);
             esp_log_buffer_hex(SPP_TAG, spp_data, size);
+
+
+            uint32_t value = 0;
+
+            uint8_t byte1 = 0;
+            uint8_t byte2 = 0;
+            uint8_t byte3 = 0;
+            uint8_t byte4 = 0;
+
+            // uint8_t byte1 = spp_data[12];
+            // uint8_t byte2 = spp_data[13];
+            // uint8_t byte3 = spp_data[14];
+            // uint8_t byte4 = spp_data[15];
+
+            // value = (uint32_t)(byte1 <<24) | (byte2 << 16) | (byte3 << 8) | byte4;
+
+            // for(i=0;i<4;i++){
+            //     uint32_t value = 0;
+
+            //     byte1 = spp_data[12];
+            //     byte2 = spp_data[13];
+            //     byte3 = spp_data[14];
+            //     byte4 = spp_data[15];
+
+            // // value = (uint32_t)(byte1 <<24) | (byte2 << 16) | (byte3 << 8) | byte4;
+            // }
+            
+
+            memcpy(&pidSettings,spp_data,sizeof(pidSettings));
+
+            esp_log_buffer_hex(SPP_TAG, &pidSettings, size);
+
+            ESP_LOGI("RECEPCION BT", "KP = %ld, KI = %ld, KD = %ld", pidSettings.kp,pidSettings.ki,pidSettings.kd);
             /* To avoid task watchdog */
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
@@ -75,6 +119,9 @@ static void esp_spp_cb(uint16_t e, void *p)
 {
     esp_spp_cb_event_t event = e;
     esp_spp_cb_param_t *param = p;
+
+    handleSpp = param->open.handle;             //TODO: verificar
+
     char bda_str[18] = {0};
 
     switch (event) {
@@ -134,9 +181,17 @@ static void esp_spp_cb(uint16_t e, void *p)
          * stack and also have a effect on the throughput!
          */
         // ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len:%d handle:%d",param->data_ind.len, param->data_ind.handle);
+
+        // esp_spp_write(param->write.handle, param->data_ind.len, param->data_ind.data);
+
+        // char str[] = "Hola mundo!";
+        // esp_spp_write(param->write.handle, strlen(str), (uint8_t *)str);
+        
         if (param->data_ind.len < 128) {
             esp_log_buffer_hex("", param->data_ind.data, param->data_ind.len);
         }
+
+
         break;
     case ESP_SPP_VFS_REGISTER_EVT:
         if (param->vfs_register.status == ESP_SPP_SUCCESS) {
@@ -257,7 +312,15 @@ void bt_init(void){
 
     spp_task_task_start_up();
 
-    esp_spp_cfg_t bt_spp_cfg = BT_SPP_DEFAULT_CONFIG();
+    esp_spp_cfg_t bt_spp_cfg = {
+        .enable_l2cap_ertm = true,
+        .mode = ESP_SPP_MODE_VFS,
+        .tx_buffer_size = ESP_SPP_MAX_TX_BUFFER_SIZE
+    };
+    
+    // BT_SPP_DEFAULT_CONFIG();
+
+
     if (esp_spp_enhanced_init(&bt_spp_cfg) != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s spp init failed", __func__);
         return;
@@ -282,21 +345,21 @@ void bt_init(void){
     return;
 }
 
-// void btSendData(float x,float y, uint16_t motores){
-//     char spp_data[256];
-//     sprintf(spp_data, "X: %f Y: %f, Motores: %d\n", x,y,motores);
-//     esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
-// }
+void btSendData(float x,float y, uint16_t motores){
+    char spp_data[256];
+    sprintf(spp_data, "X: %f Y: %f, Motores: %d\n", x,y,motores);
+    esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
+}
 
-// void btSendAngle(float ejeX,float ejeY,float ejeZ){
-//     char spp_data[256];
-//     sprintf(spp_data,"Angle X: %f\fAngle Y: %f\fAngle Z: %f\f\n", ejeX, ejeY, ejeZ);
-//     esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
-// }
+void btSendAngle(float ejeX,float ejeY,float ejeZ){
+    char spp_data[256];
+    sprintf(spp_data,"Angle X: %f\fAngle Y: %f\fAngle Z: %f\f\n", ejeX, ejeY, ejeZ);
+    esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
+}
 
-// uint8_t btIsConnected(void){
-//     return btConnected;
-// }
+uint8_t btIsConnected(void){
+    return btConnected;
+}
 
 
 // // /* esta funcion se llama desde el handler de eventos de bt spp, en param incluye la informacion recibida, asi como el handle y la longitud */

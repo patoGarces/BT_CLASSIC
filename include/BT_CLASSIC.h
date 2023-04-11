@@ -2,6 +2,7 @@
 #define INC_BT_CLASSIC_H
 
 #include "stdint.h"
+#include "string.h"
 #include "esp_spp_api.h"
 
 typedef struct{
