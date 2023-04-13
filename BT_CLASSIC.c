@@ -40,6 +40,7 @@ uint8_t btConnected=false;                                        //guardo el es
     uint32_t kp;
     uint32_t ki;
     uint32_t kd;
+    uint32_t checksum;
 } pidSettings;
 
 static void spp_read_handle(void * param)
@@ -73,37 +74,20 @@ static void spp_read_handle(void * param)
             esp_log_buffer_hex(SPP_TAG, spp_data, size);
 
 
-            uint32_t value = 0;
-
-            uint8_t byte1 = 0;
-            uint8_t byte2 = 0;
-            uint8_t byte3 = 0;
-            uint8_t byte4 = 0;
-
-            // uint8_t byte1 = spp_data[12];
-            // uint8_t byte2 = spp_data[13];
-            // uint8_t byte3 = spp_data[14];
-            // uint8_t byte4 = spp_data[15];
-
-            // value = (uint32_t)(byte1 <<24) | (byte2 << 16) | (byte3 << 8) | byte4;
-
-            // for(i=0;i<4;i++){
-            //     uint32_t value = 0;
-
-            //     byte1 = spp_data[12];
-            //     byte2 = spp_data[13];
-            //     byte3 = spp_data[14];
-            //     byte4 = spp_data[15];
-
-            // // value = (uint32_t)(byte1 <<24) | (byte2 << 16) | (byte3 << 8) | byte4;
-            // }
-            
-
             memcpy(&pidSettings,spp_data,sizeof(pidSettings));
 
             esp_log_buffer_hex(SPP_TAG, &pidSettings, size);
 
-            ESP_LOGI("RECEPCION BT", "KP = %ld, KI = %ld, KD = %ld", pidSettings.kp,pidSettings.ki,pidSettings.kd);
+            printf("KP = %ld, KI = %ld, KD = %ld, checksum: %ld\n", pidSettings.kp,pidSettings.ki,pidSettings.kd,pidSettings.checksum);
+
+            if(pidSettings.header == 0xABC0){
+                printf("HEader detectado! \n");
+            }
+
+            if(pidSettings.checksum == (pidSettings.header ^ pidSettings.kp ^ pidSettings.ki ^ pidSettings.kd)){
+                printf("Paquete valido!\n");
+            }
+
             /* To avoid task watchdog */
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
@@ -341,7 +325,7 @@ void bt_init(void){
     esp_bt_pin_code_t pin_code;
     esp_bt_gap_set_pin(pin_type, 0, pin_code);
 
-    printf("Bluetooth iniciado exitosamente");
+    printf("Bluetooth iniciado exitosamente\n");
     return;
 }
 
