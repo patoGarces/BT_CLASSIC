@@ -14,8 +14,9 @@
 #include "esp_gap_bt_api.h"
 #include "esp_bt_device.h"
 #include "esp_spp_api.h"
-#include "spp_task.h"
 #include "sys/unistd.h"
+
+#include "../../../../include/comms.h"
 
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
@@ -28,69 +29,16 @@ static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
-static void spp_read_handle(void * param);
-
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
- typedef struct{
-    uint32_t header;
-    uint32_t kp;
-    uint32_t ki;
-    uint32_t kd;
-    uint32_t checksum;
-} pidSettings_t;
+extern QueueHandle_t queueReceive;
+extern QueueHandle_t queueSend;
 
-
-QueueHandle_t queueReceive;
-
-static void spp_read_handle(void * param)
-{
-    queueReceive = xQueueCreate(1, sizeof(pidSettings_t));
-
-    pidSettings_t pidSettings;
- 
-    pidSettings.header = 0;
-    pidSettings.kp = 0;
-    pidSettings.ki = 0;
-    pidSettings.kd = 0;
-
-    do {
-
-        if( xQueueReceive(queueReceive,
-                         &pidSettings,
-                         ( TickType_t ) 100 ) == pdPASS ){
-                            printf("Paquete recibido\n");
-                            esp_log_buffer_hex("ENQUEUE RECEIVE:", &pidSettings, sizeof(pidSettings));
-                         
-
-            // ESP_LOGI(SPP_TAG, "fd = %d data_len = %d", fd, size);
-            // esp_log_buffer_hex(SPP_TAG, spp_data, size);
-
-            // memcpy(&pidSettings,spp_data,sizeof(pidSettings));
-
-            // esp_log_buffer_hex(SPP_TAG, &pidSettings, size);
-
-            printf("KP = %ld, KI = %ld, KD = %ld, checksum: %ld\n", pidSettings.kp,pidSettings.ki,pidSettings.kd,pidSettings.checksum);
-
-            if(pidSettings.header == 0xABC0){
-                printf("HEader detectado! \n");
-            }
-
-            if(pidSettings.checksum == (pidSettings.header ^ pidSettings.kp ^ pidSettings.ki ^ pidSettings.kd)){
-                printf("Paquete valido!\n");
-            }
-
-        }
-    } while (1);
-
-    spp_wr_task_shut_down();
-}
-
+static void handlerEnqueueSender(void *pvParameters);
 
 static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-
     handleSpp = param->open.handle;
 
     switch (event) {
@@ -144,6 +92,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         btConnected = true;
         spp_wr_task_start_up(spp_read_handle, param->srv_open.fd);
+        xTaskCreate(handlerEnqueueSender,"queue sender manager",2048,NULL,5,NULL);
         break;
     default:
         break;
@@ -194,6 +143,27 @@ void bt_init(void){
      printf("Bluetooth iniciado exitosamente\n");
 }
 
+static void handlerEnqueueSender(void *pvParameters){
+
+    status_robot_t newStatus;
+
+    while(btConnected){
+
+        if( xQueueReceive(queueSend,
+                            &newStatus,
+                            ( TickType_t ) 100 ) == pdPASS ){
+            
+            printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
+            // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
+
+            esp_spp_write(handleSpp, sizeof(newStatus), &newStatus);
+            
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    vTaskDelete(NULL);
+}
 
 void btSendData(float x,float y, uint16_t motores){
     char spp_data[256];
@@ -210,23 +180,3 @@ void btSendAngle(float ejeX,float ejeY,float ejeZ){
 uint8_t btIsConnected(void){
     return btConnected;
 }
-
-
-// // /* esta funcion se llama desde el handler de eventos de bt spp, en param incluye la informacion recibida, asi como el handle y la longitud */
-// void btReceiveData(esp_spp_cb_param_t *param){
-//     char spp_data[100];
-
-// //     // if(strstr((const char*)param->data_ind.data,"LEDON") != NULL){
-// //     //     gpio_set_level(LED2,1);
-// //     //     printf("LED ENCENDIDO\n");
-// //     // }
-// //     // if(strstr((const char*)param->data_ind.data,"LEDOFF") != NULL){
-// //     //     gpio_set_level(LED2,0);
-// //     //     printf("LED APAGADO\n");
-
-//     // }
-//     /* respondo */
-//     sprintf(spp_data, "Comando recibido: %s\n", param->data_ind.data);
-//     esp_spp_write(param->data_ind.handle, strlen(spp_data), (uint8_t *)spp_data);
-
-// }
