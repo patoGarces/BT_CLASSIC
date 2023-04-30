@@ -65,18 +65,10 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
         break;
     case ESP_SPP_DATA_IND_EVT:
-        // ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",param->data_ind.len, param->data_ind.handle);
         if (param->data_ind.len < 1023) {
-            // snprintf(buf, (size_t)param->data_ind.len, (char *)param->data_ind.data);
-            // printf("%s\n", buf);
-            // sprintf(spp_data, "Received characters: %d\n", param->data_ind.len);
-            // esp_spp_write(param->write.handle, strlen(spp_data), (uint8_t *)spp_data);
-
             pidSettings_t pidSettings;
             memcpy(&pidSettings,param->data_ind.data,sizeof(pidSettings));
-
             xQueueSend(queueReceive,( void * ) &pidSettings, 0);
-            // esp_log_buffer_hex("ESP_SPP_DATA_IND_EVT",param->data_ind.data,param->data_ind.len);
         }
         else {
             esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
@@ -165,17 +157,7 @@ static void handlerEnqueueSender(void *pvParameters){
     vTaskDelete(NULL);
 }
 
-void btSendData(float x,float y, uint16_t motores){
-    char spp_data[256];
-    sprintf(spp_data, "X: %f Y: %f, Motores: %d\n", x,y,motores);
-    esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
-}
 
-void btSendAngle(float ejeX,float ejeY,float ejeZ){
-    char spp_data[256];
-    sprintf(spp_data,"Angle X: %f\fAngle Y: %f\fAngle Z: %f\f\n", ejeX, ejeY, ejeZ);
-    esp_spp_write(handleSpp, strlen(spp_data), (uint8_t *)spp_data);
-}
 
 uint8_t btIsConnected(void){
     return btConnected;
