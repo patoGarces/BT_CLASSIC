@@ -18,11 +18,13 @@
 
 #include "../../../../include/comms.h"
 
+#define BT_CORE 0
+
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
 #define EXCAMPLE_DEVICE_NAME "ESP_SPP_ACCEPTOR"
 
- #define SPP_DATA_LEN 100
+#define SPP_DATA_LEN 100
 
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 
@@ -78,13 +80,14 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
         break;
     case ESP_SPP_WRITE_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
+        // ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
         break;
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         btConnected = true;
         spp_wr_task_start_up(spp_read_handle, param->srv_open.fd);
-        xTaskCreate(handlerEnqueueSender,"queue sender manager",2048,NULL,5,NULL);
+        xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",2048,NULL,5,NULL,BT_CORE);
+        
         break;
     default:
         break;
@@ -145,7 +148,7 @@ static void handlerEnqueueSender(void *pvParameters){
                             &newStatus,
                             ( TickType_t ) 100 ) == pdPASS ){
             
-            printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
+            // printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
             // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
 
             esp_spp_write(handleSpp, sizeof(newStatus), &newStatus);
