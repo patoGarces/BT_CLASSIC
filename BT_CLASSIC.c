@@ -35,7 +35,7 @@ uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
 extern QueueHandle_t queueReceive;
-extern QueueHandle_t queueSend;
+QueueHandle_t queueSend;
 
 static void handlerEnqueueSender(void *pvParameters);
 
@@ -141,6 +141,8 @@ void bt_init(void){
 static void handlerEnqueueSender(void *pvParameters){
 
     status_robot_t newStatus;
+
+    queueSend = xQueueCreate(1, sizeof(status_robot_t));
 
     while(btConnected){
 
