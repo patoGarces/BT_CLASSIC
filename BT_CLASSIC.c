@@ -68,7 +68,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_DATA_IND_EVT:
         if (param->data_ind.len < 1023) {
-            pidSettings_t pidSettings;
+            pid_settings_t pidSettings;
             memcpy(&pidSettings,param->data_ind.data,sizeof(pidSettings));
             xQueueSend(queueReceive,( void * ) &pidSettings, 0);
         }
