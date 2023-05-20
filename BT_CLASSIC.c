@@ -34,7 +34,8 @@ static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
-extern QueueHandle_t queueReceive;
+extern QueueHandle_t queueReceiveSettings;
+extern QueueHandle_t queueReceiveControl;
 QueueHandle_t queueSend;
 
 static void handlerEnqueueSender(void *pvParameters);
@@ -68,9 +69,23 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_DATA_IND_EVT:
         if (param->data_ind.len < 1023) {
-            pid_settings_t pidSettings;
-            memcpy(&pidSettings,param->data_ind.data,sizeof(pidSettings));
-            xQueueSend(queueReceive,( void * ) &pidSettings, 0);
+
+            header_handler_t header_handler;
+            memcpy(&header_handler,param->data_ind.data,sizeof(header_handler));
+
+            if( header_handler.header == HEADER_COMMS){
+
+                if( header_handler.header_key == HEADER_RX_KEY_SETTINGS){
+                    pid_settings_t pidSettings;
+                    memcpy(&pidSettings,param->data_ind.data,sizeof(pidSettings));
+                    xQueueSend(queueReceiveSettings,( void * ) &pidSettings, 0);
+                }
+                else if( header_handler.header_key == HEADER_RX_KEY_CONTROL){
+                    control_app_t controlApp;
+                    memcpy(&controlApp,param->data_ind.data,sizeof(controlApp));
+                    xQueueSend(queueReceiveControl,( void * ) &controlApp, 0);
+                }
+            }
         }
         else {
             esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
@@ -153,7 +168,7 @@ static void handlerEnqueueSender(void *pvParameters){
             // printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
             // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
 
-            esp_spp_write(handleSpp, sizeof(newStatus), &newStatus);
+            esp_spp_write(handleSpp, sizeof(newStatus), (uint8_t *)&newStatus);
             
         }
         vTaskDelay(pdMS_TO_TICKS(50));
