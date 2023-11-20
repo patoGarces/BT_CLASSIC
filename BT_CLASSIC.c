@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "BT_CLASSIC.h"
-
 #include "driver/gpio.h"
-
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
@@ -15,27 +13,27 @@
 #include "esp_bt_device.h"
 #include "esp_spp_api.h"
 #include "sys/unistd.h"
+#include "freertos/stream_buffer.h"
 
-#include "../../../../include/comms.h"
+#include "../../../include/comms.h"
 
 #define BT_CORE 0
 
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
-#define EXCAMPLE_DEVICE_NAME "ESP_SPP_ACCEPTOR"
+#define BT_DEVICE_NAME "ESP32_BRAZO_ROBOT"
 
 #define SPP_DATA_LEN 100
 
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
-
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
+
+StreamBufferHandle_t xStreamBufferReceiver;
 
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
 
-extern QueueHandle_t queueReceiveSettings;
-extern QueueHandle_t queueReceiveControl;
 QueueHandle_t queueSend;
 
 static void handlerEnqueueSender(void *pvParameters);
@@ -47,7 +45,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     switch (event) {
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
-        esp_bt_dev_set_device_name(EXCAMPLE_DEVICE_NAME);
+        esp_bt_dev_set_device_name(BT_DEVICE_NAME);
         esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         esp_spp_start_srv(sec_mask,role_slave, 0, SPP_SERVER_NAME);
         break;
@@ -69,22 +67,10 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_DATA_IND_EVT:
         if (param->data_ind.len < 1023) {
-
-            header_handler_t header_handler;
-            memcpy(&header_handler,param->data_ind.data,sizeof(header_handler));
-
-            if( header_handler.header == HEADER_COMMS){
-
-                if( header_handler.header_key == HEADER_RX_KEY_SETTINGS){
-                    pid_settings_t pidSettings;
-                    memcpy(&pidSettings,param->data_ind.data,sizeof(pidSettings));
-                    xQueueSend(queueReceiveSettings,( void * ) &pidSettings, 0);
-                }
-                else if( header_handler.header_key == HEADER_RX_KEY_CONTROL){
-                    control_app_t controlApp;
-                    memcpy(&controlApp,param->data_ind.data,sizeof(controlApp));
-                    xQueueSend(queueReceiveControl,( void * ) &controlApp, 0);
-                }
+                /* Intenta escribir en el buffer */
+            if (xStreamBufferSend(xStreamBufferReceiver, param->data_ind.data, param->data_ind.len, 1) != pdPASS) {
+                /* Manejar el caso en el que el buffer está lleno y no se pueden enviar datos */
+                // TODO: manejar caso de buffer lleno
             }
         }
         else {
@@ -151,26 +137,27 @@ void bt_init(void){
     }
 
      printf("Bluetooth iniciado exitosamente\n");
+     xStreamBufferReceiver = xStreamBufferCreate( 512, 1 );
 }
 
 static void handlerEnqueueSender(void *pvParameters){
 
-    status_robot_t newStatus;
+    // status_robot_t newStatus;
 
-    queueSend = xQueueCreate(1, sizeof(status_robot_t));
+    // queueSend = xQueueCreate(1, sizeof(status_robot_t));
 
     while(btConnected){
 
-        if( xQueueReceive(queueSend,
-                            &newStatus,
-                            ( TickType_t ) 100 ) == pdPASS ){
+        // if( xQueueReceive(queueSend,
+        //                     &newStatus,
+        //                     ( TickType_t ) 100 ) == pdPASS ){
             
-            // printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
-            // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
+        //     // printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
+        //     // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
 
-            esp_spp_write(handleSpp, sizeof(newStatus), (uint8_t *)&newStatus);
+        //     esp_spp_write(handleSpp, sizeof(newStatus), (uint8_t *)&newStatus);
             
-        }
+        // }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
