@@ -30,6 +30,7 @@ static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
 StreamBufferHandle_t xStreamBufferReceiver;
+StreamBufferHandle_t xStreamBufferSender;
 
 uint32_t handleSpp;
 uint8_t btConnected=false;                                        //guardo el estado de conexion
@@ -142,25 +143,20 @@ void bt_init(void){
 
 static void handlerEnqueueSender(void *pvParameters){
 
-    // status_robot_t newStatus;
-
-    // queueSend = xQueueCreate(1, sizeof(status_robot_t));
+    char received_data[100];
+    xStreamBufferSender = xStreamBufferCreate( 512, 1 );
 
     while(btConnected){
 
-        // if( xQueueReceive(queueSend,
-        //                     &newStatus,
-        //                     ( TickType_t ) 100 ) == pdPASS ){
-            
-        //     // printf("Envio dato por bt, bat_percent: %d\n",newStatus.bat_percent);
-        //     // esp_spp_write(handleSpp,sizeof(dato),(uint8_t *)dato);
+        BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, portMAX_DELAY);
 
-        //     esp_spp_write(handleSpp, sizeof(newStatus), (uint8_t *)&newStatus);
-            
-        // }
+        if (bytes_received > 0) {
+            // received_data[bytes_received] = '\0';                       // Asegurar que la cadena esté terminada correctamente
+            // printf("Sender: %ssize: %d\n", received_data,bytes_received);
+            esp_spp_write(handleSpp,bytes_received,(uint8_t *)&received_data);
+        }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
-
     vTaskDelete(NULL);
 }
 
