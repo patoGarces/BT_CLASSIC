@@ -25,7 +25,6 @@
 
 #define SPP_DATA_LEN 100
 
-static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_CB;
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
@@ -132,7 +131,12 @@ void bt_init(void){
         return;
     }
 
-    if (esp_spp_init(esp_spp_mode) != ESP_OK) {
+    esp_spp_cfg_t configSpp = {
+        .mode = ESP_SPP_MODE_CB,
+        .enable_l2cap_ertm = false,  
+    };
+
+    if (esp_spp_enhanced_init(&configSpp) != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s spp init failed\n", __func__);
         return;
     }
