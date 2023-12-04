@@ -87,7 +87,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         btConnected = true;
-        spp_wr_task_start_up(spp_read_handle, param->srv_open.fd);
+        spp_wr_task_start_up();
         xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",2048,NULL,5,NULL,BT_CORE);
         
         break;
@@ -155,7 +155,7 @@ static void handlerEnqueueSender(void *pvParameters){
 
         BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, pdMS_TO_TICKS(1));
 
-        if (bytes_received > 0) {
+        if (bytes_received > 0 && btIsConnected()) {
             // received_data[bytes_received] = '\0';                       // Asegurar que la cadena esté terminada correctamente
             // printf("Sender: %ssize: %d\n", received_data,bytes_received);
             esp_spp_write(handleSpp,bytes_received,(uint8_t *)&received_data);
