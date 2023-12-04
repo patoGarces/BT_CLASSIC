@@ -23,7 +23,8 @@
 #define SPP_SERVER_NAME "SPP_SERVER"
 #define BT_DEVICE_NAME "ESP32_BRAZO_ROBOT"
 
-#define SPP_DATA_LEN 100
+#define STREAM_BUFFER_SIZE              512
+#define STREAM_BUFFER_LENGTH_TRIGGER    3
 
 static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
@@ -142,17 +143,17 @@ void bt_init(void){
     }
 
      printf("Bluetooth iniciado exitosamente\n");
-     xStreamBufferReceiver = xStreamBufferCreate( 512, 1 );
+     xStreamBufferSender = xStreamBufferCreate( STREAM_BUFFER_SIZE, STREAM_BUFFER_LENGTH_TRIGGER );
+     xStreamBufferReceiver = xStreamBufferCreate( STREAM_BUFFER_SIZE, STREAM_BUFFER_LENGTH_TRIGGER );
 }
 
 static void handlerEnqueueSender(void *pvParameters){
 
     char received_data[100];
-    xStreamBufferSender = xStreamBufferCreate( 512, 1 );
-
+    
     while(btConnected){
 
-        BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, portMAX_DELAY);
+        BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, pdMS_TO_TICKS(1));
 
         if (bytes_received > 0) {
             // received_data[bytes_received] = '\0';                       // Asegurar que la cadena esté terminada correctamente
