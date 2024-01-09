@@ -21,7 +21,6 @@
 
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
-#define BT_DEVICE_NAME "ESP32_BRAZO_ROBOT"
 
 #define STREAM_BUFFER_SIZE              512
 #define STREAM_BUFFER_LENGTH_TRIGGER    3
@@ -33,9 +32,7 @@ StreamBufferHandle_t xStreamBufferReceiver;
 StreamBufferHandle_t xStreamBufferSender;
 
 uint32_t handleSpp;
-uint8_t btConnected=false;                                        //guardo el estado de conexion
-
-QueueHandle_t queueSend;
+uint8_t btConnected=false;                                        // guardo el estado de conexion
 
 static void handlerEnqueueSender(void *pvParameters);
 
@@ -46,7 +43,6 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     switch (event) {
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
-        esp_bt_dev_set_device_name(BT_DEVICE_NAME);
         esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
         esp_spp_start_srv(sec_mask,role_slave, 0, SPP_SERVER_NAME);
         break;
@@ -70,8 +66,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         if (param->data_ind.len < 1023) {
                 /* Intenta escribir en el buffer */
             if (xStreamBufferSend(xStreamBufferReceiver, param->data_ind.data, param->data_ind.len, 1) != pdPASS) {
-                /* Manejar el caso en el que el buffer está lleno y no se pueden enviar datos */
-                // TODO: manejar caso de buffer lleno
+                /* TODO: Manejar el caso en el que el buffer está lleno y no se pueden enviar datos */
             }
         }
         else {
@@ -97,7 +92,8 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 }
 
 
-void bt_init(void){
+void btInit( char* deviceName ){
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -126,6 +122,8 @@ void bt_init(void){
         ESP_LOGE(SPP_TAG, "%s enable bluedroid failed\n", __func__);
         return;
     }
+
+    esp_bt_dev_set_device_name(deviceName);
 
     if (esp_spp_register_callback(esp_spp_cb) != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s spp register failed\n", __func__);

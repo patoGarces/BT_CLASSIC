@@ -5,7 +5,7 @@
 #include "string.h"
 #include "esp_spp_api.h"
 
-void bt_init(void);
+void btInit( char* deviceName );
 uint8_t btIsConnected(void);
 
 
