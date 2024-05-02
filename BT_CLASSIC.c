@@ -65,8 +65,9 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_DATA_IND_EVT:
         if (param->data_ind.len < 1023) {
                 /* Intenta escribir en el buffer */
-            if (xStreamBufferSend(xStreamBufferReceiver, param->data_ind.data, param->data_ind.len, 1) != pdPASS) {
+            if (xStreamBufferSend(xStreamBufferReceiver, param->data_ind.data, param->data_ind.len, 1) != param->data_ind.len) {
                 /* TODO: Manejar el caso en el que el buffer está lleno y no se pueden enviar datos */
+                ESP_LOGI(SPP_TAG, "BUFFER DE RECEPCION OVERFLOW");
             }
         }
         else {
@@ -83,7 +84,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         btConnected = true;
         spp_wr_task_start_up();
-        xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",2048,NULL,5,NULL,BT_CORE);
+        xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",4096,NULL,5,NULL,BT_CORE);
         
         break;
     default:
