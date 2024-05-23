@@ -17,7 +17,7 @@
 
 #include "../../../include/comms.h"
 
-#define BT_CORE 0
+#define BT_CORE PRO_CPU_NUM
 
 #define SPP_TAG "SPP_ACCEPTOR_DEMO"
 #define SPP_SERVER_NAME "SPP_SERVER"
@@ -32,7 +32,8 @@ StreamBufferHandle_t xStreamBufferReceiver;
 StreamBufferHandle_t xStreamBufferSender;
 
 uint32_t handleSpp;
-uint8_t btConnected=false;                                        // guardo el estado de conexion
+uint8_t btConnected=false;                                      // guardo el estado de conexion
+uint8_t waitCongestionTx = false;                               // Este flag permite esperar hasta que el spp se descongestione
 
 static void handlerEnqueueSender(void *pvParameters);
 
@@ -76,16 +77,20 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_CONG_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_CONG_EVT");
+        printf("Analisis congestion: %d, status: %d\n",param->cong.cong,param->cong.status);
+        waitCongestionTx = param->cong.cong;
         break;
     case ESP_SPP_WRITE_EVT:
         // ESP_LOGI(SPP_TAG, "ESP_SPP_WRITE_EVT");
+        // printf("Analisis congestion 2: %d, status: %d\n",param->cong.cong,param->cong.status);
         break;
+
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
         btConnected = true;
+        waitCongestionTx = false;
         spp_wr_task_start_up();
         xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",4096,NULL,5,NULL,BT_CORE);
-        
         break;
     default:
         break;
@@ -152,14 +157,17 @@ static void handlerEnqueueSender(void *pvParameters){
     
     while(btConnected){
 
-        BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, pdMS_TO_TICKS(1));
+        BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, pdMS_TO_TICKS(50));
 
         if (bytes_received > 0 && btIsConnected()) {
-            // received_data[bytes_received] = '\0';                       // Asegurar que la cadena esté terminada correctamente
-            // printf("Sender: %ssize: %d\n", received_data,bytes_received);
-            esp_spp_write(handleSpp,bytes_received,(uint8_t *)&received_data);
+
+            if (!waitCongestionTx) {
+                esp_spp_write(handleSpp,bytes_received,(uint8_t *)&received_data);
+            }
+            else {
+                printf("esperando a esp_spp_write\n");
+            }
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
     }
     vTaskDelete(NULL);
 }
