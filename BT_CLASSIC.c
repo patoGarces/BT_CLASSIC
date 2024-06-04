@@ -31,6 +31,8 @@ static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 StreamBufferHandle_t xStreamBufferReceiver;
 StreamBufferHandle_t xStreamBufferSender;
 
+TaskHandle_t SenderToBtHandle;
+
 uint32_t handleSpp;
 uint8_t btConnected=false;                                      // guardo el estado de conexion
 uint8_t waitCongestionTx = false;                               // Este flag permite esperar hasta que el spp se descongestione
@@ -55,6 +57,9 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     case ESP_SPP_CLOSE_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT");
+        spp_wr_task_shut_down();
+        vTaskDelete(SenderToBtHandle);
+        waitCongestionTx = false;
         btConnected = false;
         break;
     case ESP_SPP_START_EVT:
@@ -87,10 +92,10 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 
     case ESP_SPP_SRV_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_SRV_OPEN_EVT");
-        btConnected = true;
-        waitCongestionTx = false;
         spp_wr_task_start_up();
-        xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",4096,NULL,5,NULL,BT_CORE);
+        xTaskCreatePinnedToCore(handlerEnqueueSender,"queue sender manager",4096,NULL,5,&SenderToBtHandle,BT_CORE);
+        waitCongestionTx = false;
+        btConnected = true;
         break;
     default:
         break;
@@ -118,7 +123,12 @@ void btInit( char* deviceName ){
         ESP_LOGE(SPP_TAG, "%s enable controller failed\n", __func__);
         return;
     }
+    // TODO: para compatibilidad con espidf v5.2.1
+    // esp_bluedroid_config_t bluedroid_config = {
+    //     .ssp_en = false     // TODO: revisar este parametro
+    // };
 
+    // if (esp_bluedroid_init_with_cfg(&bluedroid_config) != ESP_OK) {
     if (esp_bluedroid_init() != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s initialize bluedroid failed\n", __func__);
         return;
@@ -159,7 +169,7 @@ static void handlerEnqueueSender(void *pvParameters){
 
         BaseType_t bytes_received = xStreamBufferReceive(xStreamBufferSender, received_data, sizeof(received_data) - 1, pdMS_TO_TICKS(50));
 
-        if (bytes_received > 0 && btIsConnected()) {
+        if (bytes_received > 0 && isBtConnected()) {
 
             if (!waitCongestionTx) {
                 esp_spp_write(handleSpp,bytes_received,(uint8_t *)&received_data);
@@ -174,6 +184,6 @@ static void handlerEnqueueSender(void *pvParameters){
 
 
 
-uint8_t btIsConnected(void){
+uint8_t isBtConnected(void){
     return btConnected;
 }
